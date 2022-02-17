@@ -21,11 +21,13 @@ import angr
 import claripy
 import sys
 
+ELFbase = 0x400000
+
 def main(argv):
-  path_to_binary = argv[1]
+  path_to_binary = '07_angr_symbolic_file'
   project = angr.Project(path_to_binary)
 
-  start_address = ???
+  start_address = ELFbase + 0x15DD
   initial_state = project.factory.blank_state(addr=start_address)
 
   # Specify some information needed to construct a simulated file. For this
@@ -33,9 +35,8 @@ def main(argv):
   # Note: to read from the file, the binary calls
   # 'fread(buffer, sizeof(char), 64, file)'.
   # (!)
-  filename = ???  # :string
-  symbolic_file_size_bytes = ???
-
+  filename = 'DOJEZIWF.txt'  # :string
+  symbolic_file_size_bytes = 0x40
   # A file, in Linux, represents a stream of sequential data. This stream may
   # come from a physical file on your hard drive, the network, the output of
   # another program (ex: /dev/urandom), or anything else. In our case, we want
@@ -44,8 +45,6 @@ def main(argv):
   # supply the stream of data to the Linux file. Also, to communicate with 
   # Angr's constraint solving system, we need to associate the memory with the 
   # initial_state.
-  symbolic_file_backing_memory = angr.state_plugins.SimSymbolicMemory()
-  symbolic_file_backing_memory.set_state(initial_state)
 
   # Construct a bitvector for the password and then store it in the file's
   # backing memory. The store method works exactly the same as the store method
@@ -76,7 +75,6 @@ def main(argv):
   # stored.
   # (!)
   password = claripy.BVS('password', symbolic_file_size_bytes * 8)
-  symbolic_file_backing_memory.store(???, password)
 
   # Construct the symbolic file. The file_options parameter specifies the Linux
   # file permissions (read, read/write, execute etc.) The content parameter
@@ -87,8 +85,7 @@ def main(argv):
   # Set the content parameter to our SimSymbolicMemory instance that holds the
   # symbolic data.
   # (!)
-  file_options = 'r'
-  password_file = angr.storage.SimFile(filename, file_options, content=???, size=symbolic_file_size_bytes)
+  password_file = angr.storage.SimFile(filename, password, size=symbolic_file_size_bytes)
 
   # We have already created the file and the memory that stores the data that
   # the file will stream to the program, but we now need to tell Angr where the
@@ -100,20 +97,18 @@ def main(argv):
   # }
   # would specify that any fopen('hello.txt', 'r') calls should stream data from
   # hello_txt_file.
-  symbolic_filesystem = {
-    filename : password_file
-  }
-  initial_state.posix.fs = symbolic_filesystem
-
+  
+  initial_state.fs.insert(filename, password_file)
+  initial_state.regs.ebx = ELFbase + 0x00003FA8 
   simulation = project.factory.simgr(initial_state)
 
   def is_successful(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    return "Good Job.".encode() in stdout_output
 
   def should_abort(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    return "Try again.".encode() in stdout_output
 
   simulation.explore(find=is_successful, avoid=should_abort)
 

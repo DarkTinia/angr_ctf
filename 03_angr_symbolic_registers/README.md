@@ -6,3 +6,5 @@ add     eax, (offset _GLOBAL_OFFSET_TABLE_ - $)
 ```
 
 具体原因尚不明确。
+
+已解决

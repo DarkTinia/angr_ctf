@@ -2,17 +2,20 @@ import angr
 import claripy
 import sys
 
+ELFbase = 0x400000
+
 def main(argv):
-  path_to_binary = argv[1]
+  path_to_binary = '06_angr_symbolic_dynamic_memory'
   project = angr.Project(path_to_binary)
 
-  start_address = ???
+  start_address = 0x080493D6 #0x08048696   #ELFbase + 0x140D  
   initial_state = project.factory.blank_state(addr=start_address)
 
   # The binary is calling scanf("%8s %8s").
   # (!)
-  password0 = claripy.BVS('password0', ???)
-  ...
+  password0 = claripy.BVS('password0', 64)
+  password1 = claripy.BVS('password1', 64)
+  
 
   # Instead of telling the binary to write to the address of the memory
   # allocated with malloc, we can simply fake an address to any unused block of
@@ -24,35 +27,38 @@ def main(argv):
   # specify to use the endianness of your architecture, use the parameter
   # endness=project.arch.memory_endness. On x86, this is little-endian.
   # (!)
-  fake_heap_address0 = ???
-  pointer_to_malloc_memory_address0 = ???
+  fake_heap_address0 = 0x5555500
+  pointer_to_malloc_memory_address0 = 0x088E556C#0x09FD92AC #ELFbase+0x0089D52C
   initial_state.memory.store(pointer_to_malloc_memory_address0, fake_heap_address0, endness=project.arch.memory_endness)
-  ...
+  fake_heap_address1 = 0x5555510
+  pointer_to_malloc_memory_address1 = 0x088E5574#0x09FD92B4#ELFbase+0x0089D530
+  initial_state.memory.store(pointer_to_malloc_memory_address1, fake_heap_address1, endness=project.arch.memory_endness)
+  
 
   # Store our symbolic values at our fake_heap_address. Look at the binary to
   # determine the offsets from the fake_heap_address where scanf writes.
   # (!)
   initial_state.memory.store(fake_heap_address0, password0)
-  ...
-
+  initial_state.memory.store(fake_heap_address1, password1)
+  initial_state.regs.ebx = 0x0804C000
   simulation = project.factory.simgr(initial_state)
 
   def is_successful(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    return "Good Job.".encode() in stdout_output
 
   def should_abort(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    return 'Try again.'.encode() in stdout_output
 
   simulation.explore(find=is_successful, avoid=should_abort)
 
   if simulation.found:
     solution_state = simulation.found[0]
 
-    solution0 = solution_state.se.eval(password0,cast_to=str)
-    ...
-    solution = ???
+    solution0 = solution_state.solver.eval(password0,cast_to=bytes).decode()
+    solution1 = solution_state.solver.eval(password1, cast_to=bytes).decode()
+    solution = solution0+' '+solution1
 
     print(solution)
   else:
