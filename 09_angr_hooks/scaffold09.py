@@ -13,8 +13,10 @@ import angr
 import claripy
 import sys
 
+ELFbase = 0x400000
+
 def main(argv):
-  path_to_binary = argv[1]
+  path_to_binary = './09_angr_hooks'
   project = angr.Project(path_to_binary)
 
   # Since Angr can handle the initial call to scanf, we can start from the
@@ -23,7 +25,7 @@ def main(argv):
 
   # Hook the address of where check_equals_ is called.
   # (!)
-  check_equals_called_address = ???
+  check_equals_called_address = ELFbase + 0x00001452
 
   # The length parameter in angr.Hook specifies how many bytes the execution
   # engine should skip after completing the hook. This will allow hooks to
@@ -31,14 +33,14 @@ def main(argv):
   # instructions involved in calling check_equals_, and then determine how many
   # bytes are used to represent them in memory. This will be the skip length.
   # (!)
-  instruction_to_skip_length = ???
+  instruction_to_skip_length = 5
   @project.hook(check_equals_called_address, length=instruction_to_skip_length)
   def skip_check_equals_(state):
     # Determine the address where user input is stored. It is passed as a
     # parameter ot the check_equals_ function. Then, load the string. Reminder:
     # int check_equals_(char* to_check, int length) { ...
-    user_input_buffer_address = ??? # :integer, probably hexadecimal
-    user_input_buffer_length = ???
+    user_input_buffer_address = ELFbase+0x402C # :integer, probably hexadecimal
+    user_input_buffer_length = 0x10
 
     # Reminder: state.memory.load will read the stored value at the address
     # user_input_buffer_address of byte length user_input_buffer_length.
@@ -52,7 +54,7 @@ def main(argv):
     # Determine the string this function is checking the user input against.
     # It's encoded in the name of this function; decompile the program to find
     # it.
-    check_against_string = ??? # :string
+    check_against_string = 'DOJEZIWFDDJJVPJW' # :string
 
     # gcc uses eax to store the return value, if it is an integer. We need to
     # set eax to 1 if check_against_string == user_input_string and 0 otherwise.
@@ -73,11 +75,11 @@ def main(argv):
 
   def is_successful(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    return "Good Job.".encode() in stdout_output
 
   def should_abort(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    return "Try again.".encode() in stdout_output
 
   simulation.explore(find=is_successful, avoid=should_abort)
 
@@ -86,7 +88,7 @@ def main(argv):
 
     # Since we are allowing Angr to handle the input, retrieve it by printing
     # the contents of stdin. Use one of the early levels as a reference.
-    solution = ???
+    solution = solution_state.posix.dumps(sys.stdin.fileno()).decode()
     print(solution)
   else:
     raise Exception('Could not find the solution')
