@@ -28,10 +28,10 @@ import claripy
 import sys
 
 def main(argv):
-  path_to_binary = argv[1]
+  path_to_binary = '17_angr_arbitrary_jump'
   project = angr.Project(path_to_binary)
 
-  initial_state = ??? 
+  initial_state = project.factory.entry_state()
 
   # The save_unconstrained=True parameter specifies to Angr to not throw out
   # unconstrained states. Instead, it will move them to the list called
@@ -93,16 +93,17 @@ def main(argv):
 
   if solution_state:
     # Ensure that every printed byte is within the acceptable ASCII range (A..Z)
-    for byte in solution_state.posix.files[sys.stdin.fileno()].all_bytes().chop(bits=8):
-      solution_state.add_constraints(byte >= ???, byte <= ???)
+    # for byte in solution_state.posix.files[sys.stdin.fileno()].all_bytes().chop(bits=8):
+    #   solution_state.add_constraints(byte >= ???, byte <= ???)
 
     # Solve for the user input (recall that this is
     # 'solution_state.posix.dumps(sys.stdin.fileno())')
     # (!)
-    ...
+    solution_state.add_constraints(solution_state.regs.eip == 0x4d4c4749)
+    solution = solution_state.solver.eval(
+    solution_state.globals['solution'], cast_to=bytes)
 
-    solution = ???
-    print(solution)
+    print(print(solution[::-1]))
   else:
     raise Exception('Could not find the solution')
 
