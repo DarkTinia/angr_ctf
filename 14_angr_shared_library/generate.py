@@ -34,7 +34,7 @@ def generate(argv):
   with tempfile.NamedTemporaryFile(delete=False, suffix='.c', mode='w') as temp:
     temp.write(c_code)
     temp.seek(0)
-    os.system('gcc -m32 -I . -L ' + '/'.join(output_file.split('/')[0:-1]) + ' -o ' + output_file + ' ' + temp.name + ' -l' + output_file.split('/')[-1])
+    os.system('gcc -m32 -I . -L .' + '/'.join(output_file.split('/')[0:-1]) + ' -o ' + output_file + ' ' + temp.name + ' -l' + output_file.split('/')[-1])
 
 if __name__ == '__main__':
   generate(sys.argv)
